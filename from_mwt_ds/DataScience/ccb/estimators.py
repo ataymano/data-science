@@ -1,42 +1,18 @@
 import cb.estimators as cb
 import pandas as pd
 
-class cb_estimator_old:
-    def __init__(self, impl, slots=[]):
+class first_slot_estimator:
+    def __init__(self, impl):
         self._impl = impl
-        self.slots = set(slots)
-
-    @property
-    def slots(self):
-        return self.__slots
-
-    @slots.setter
-    def slots(self, slots):
-        self.__slots = set(slots)
-        self.__name = f'ccb|{self._impl.name()}|{",".join([str(s) for s in self.slots])}'
 
     def add(self, r, p_log, p, n = 1):
-        slots = self.slots if len(self.slots) > 0 else range(len(r))
-        for s in slots:
-            self._impl.add(r[s], p_log[s], p[s], n)
+        self._impl.add(r[0], p_log[0], p[0], n)
 
     def __add__(self, other):
-        if self.slots != other.slots or type(self) != type(other):
-            raise Exception('Estimator type mismatch')
-
-        return cb_estimator_old(self._impl + other._impl, self.slots)
-
-    def name(self):
-        return self.__name
-
-    def save(self):
-        return self._impl.save()
-
-    def load(self, o):
-        self._impl.load(o)
+        return first_slot_estimator(self._impl + other._impl)
 
     def get(self, *args, **kwargs):
-        return self._impl.get(*args, **kwargs)
+        return self._impl.get(*args, **kwargs) 
 
 class cb_estimator:
     def __init__(self, impl):
