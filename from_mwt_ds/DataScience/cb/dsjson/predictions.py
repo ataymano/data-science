@@ -1,4 +1,4 @@
-import ccb.dsjson.filters as filters
+import cb.dsjson.filters as filters
 import json
 import pandas as pd
 
@@ -13,8 +13,8 @@ class Predictor:
     filters = [filters.is_decision]
     
     baselines = {
-        'random': lambda obj: [1 / len(o['_a']) for o in obj['_outcomes']],
-        'baseline1': lambda obj: [int(o['_a'][0] == i) for i, o in enumerate(obj['_outcomes'])]
+        'random': lambda obj: 1 / len(obj['a']),
+        'baseline1': lambda obj: int(obj['_labelIndex'] == 0)
     }
 
     def __init__(self, filters = None, baselines = None):
@@ -23,16 +23,9 @@ class Predictor:
 
     def _decision_2_prediction(self, line, result):
         parsed = json_load(line)
-        a = []
-        p = []
-        r = []
-        for i, o in enumerate(parsed['_outcomes']):
-            a.append(o['_a'][0])         
-            p.append(o['_p'][0])
-            r.append(-o['_label_cost'])
-        result['a'].append(a)         
-        result['p'].append(p)
-        result['r'].append(r)
+        result['a'].append(parsed['_labelIndex'])         
+        result['p'].append(parsed['_label_probability'])
+        result['r'].append(-parsed['_label_cost'])
 
         result['t'].append(pd.to_datetime(parsed['Timestamp']))
         result['n'].append(1 if 'pdrop' not in parsed else 1 / (1 - parsed['pdrop']))
