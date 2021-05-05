@@ -106,7 +106,20 @@ class MultilineFiles(Fileset):
             f.writelines(lines)
 
     def __init__(self, files = []):
-        super().__init__(files=files, reader=MultilineFiles._read, writer=MultilineFiles._write)  
+        super().__init__(files=files, reader=MultilineFiles._read, writer=MultilineFiles._write)
+
+class NdJsonFiles(Fileset):
+    @staticmethod
+    def _read(i, path):
+        return map(lambda l : json.loads(l), open(path))
+
+    @staticmethod
+    def _write(path, objects):
+        with open(path, 'w') as f:
+            f.writelines(map(lambda l : f'{json.dumps(l)}\n', objects))
+
+    def __init__(self, files = []):
+        super().__init__(files=files, reader=NdJsonFiles._read, writer=NdJsonFiles._write) 
 
 class PickleFiles(Fileset):
     @staticmethod
