@@ -42,14 +42,14 @@ class Execution:
         return hash_value
 
     def run(self):
-        if self.process or not self._is_in_sync():
+        if self.process or not Path(self.output).exists() or not self._is_in_sync():
             Path(self.output).parent.mkdir(parents=True, exist_ok=True)
             return self.processor(self.reader(self.input))
         return None
             
     def close(self):
         self._sync()
-        return self.output if Path(self.output).exists() else None       
+        return self.output if Path(self.output).exists() else None
 
 def _fork(func, args):
     from multiprocess import Pool
@@ -57,19 +57,20 @@ def _fork(func, args):
         return p.apply(func, args)
 
 class Fileset:
-    def __init__(self, files=[], reader=None, writer=None):
-        self.files = files
-        self.reader = reader
-        self.writer = writer
+    def __init__(self, files=[], reader=None, writer=None, type=None):
+        self._files = files
+        self._reader = reader
+        self._writer = writer
+        self._type = type
 
     def read(self, i):
-        return self.reader(i, self.files[i])
+        return self._reader(i, self._files[i])
 
     def _process_execution(self, execution, progress, fork = False):
         def _run(execution):
             result = execution.run()
             if result is not None:
-                self.writer(execution.output, result)
+                self._writer(execution.output, result)
             return execution.close()
         if fork:
             result = _fork(_run, [execution])
@@ -83,18 +84,27 @@ class Fileset:
         progress.on_start(len(executions))
         if procs == 1:
             for execution in executions:
-                self.files.append(self._process_execution(execution, progress))
+                self._files.append(self._process_execution(execution, progress))
         else:
-            import multiprocessing
             from multiprocessing.pool import ThreadPool
             with ThreadPool(procs) as pool:
-                self.files = pool.starmap(self._process_execution, [(e, progress, True) for e in executions])
+                self._files = pool.starmap(self._process_execution, [(e, progress, True) for e in executions])
         progress.on_finish() 
         return self
 
-    def process(self, processor, path_gen=None, process=False, hasher = FileSizeHasher()):
+    def process(self, processor, path_gen=None, process=False, hasher=FileSizeHasher()):
         path_gen = path_gen or (lambda f: f'{f}.{processor.__name__}') 
         return [Execution(lambda p, i=i: self.reader(i, p), p, hasher, path_gen, processor, process) for i, p in enumerate(self.files)]
+
+    def delete(self):
+        for f in self.files:
+            Path(f).unlink()
+
+    def __getitem__(self, i):
+        if isinstance(i, int):
+            return self._files[i]
+
+        return self._type(self._files[i])
 
 class MultilineFiles(Fileset):
     @staticmethod
@@ -107,7 +117,7 @@ class MultilineFiles(Fileset):
             f.writelines(lines)
 
     def __init__(self, files = []):
-        super().__init__(files=files, reader=MultilineFiles._read, writer=MultilineFiles._write)
+        super().__init__(files=files, reader=MultilineFiles._read, writer=MultilineFiles._write, type=MultilineFiles)
 
 class NdJsonFiles(Fileset):
     @staticmethod
@@ -120,7 +130,7 @@ class NdJsonFiles(Fileset):
             f.writelines(map(lambda l : f'{json.dumps(l)}\n', objects))
 
     def __init__(self, files = []):
-        super().__init__(files=files, reader=NdJsonFiles._read, writer=NdJsonFiles._write) 
+        super().__init__(files=files, reader=NdJsonFiles._read, writer=NdJsonFiles._write, type=NdJsonFiles) 
 
 class PickleFiles(Fileset):
     @staticmethod
@@ -132,7 +142,7 @@ class PickleFiles(Fileset):
         df.to_pickle(path)
 
     def __init__(self, files = []):
-        super().__init__(files=files, reader=PickleFiles._read, writer=PickleFiles._write)  
+        super().__init__(files=files, reader=PickleFiles._read, writer=PickleFiles._write, type=PickleFiles)  
 
     def open(self):
         return pd.concat([self.read(i) for i in range(len(self.files))])
@@ -147,7 +157,7 @@ class CsvFiles(Fileset):
         df.to_csv(path, index=False)
 
     def __init__(self, files = []):
-        super().__init__(files=files, reader=CsvFiles._read, writer=CsvFiles._write) 
+        super().__init__(files=files, reader=CsvFiles._read, writer=CsvFiles._write, type=CsvFiles) 
 
     def open(self):
         return pd.concat([self.read(i) for i in range(len(self.files))])
