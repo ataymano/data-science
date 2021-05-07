@@ -5,6 +5,7 @@ from itertools import chain
 from pathlib import Path
 
 from pipeline.progress import dummy_progress, tqdm_progress
+import multiprocessing
 
 class FileSizeHasher:
     extension = 'size'
@@ -77,7 +78,7 @@ class Fileset:
         progress.on_step()
         return result
 
-    def init(self, executions, progress=tqdm_progress(), procs=1):
+    def init(self, executions, progress=tqdm_progress(), procs=max(1, multiprocessing.cpu_count() // 2)):
         self.files = []
         progress.on_start(len(executions))
         if procs == 1:
