@@ -94,7 +94,7 @@ class Fileset:
 
     def process(self, processor, path_gen=None, process=False, hasher=FileSizeHasher()):
         path_gen = path_gen or (lambda f: f'{f}.{processor.__name__}') 
-        return [Execution(lambda p, i=i: self.reader(i, p), p, hasher, path_gen, processor, process) for i, p in enumerate(self.files)]
+        return [Execution(lambda p, i=i: self._reader(i, p), p, hasher, path_gen, processor, process) for i, p in enumerate(self._files)]
 
     def delete(self):
         for f in self.files:
@@ -105,6 +105,9 @@ class Fileset:
             return self._files[i]
 
         return self._type(self._files[i])
+
+    def __len__(self):
+        return len(self._files)
 
 class MultilineFiles(Fileset):
     @staticmethod
@@ -145,7 +148,7 @@ class PickleFiles(Fileset):
         super().__init__(files=files, reader=PickleFiles._read, writer=PickleFiles._write, type=PickleFiles)  
 
     def open(self):
-        return pd.concat([self.read(i) for i in range(len(self.files))])
+        return pd.concat([self.read(i) for i in range(len(self))])
 
 class CsvFiles(Fileset):
     @staticmethod
