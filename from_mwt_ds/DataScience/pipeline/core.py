@@ -6,6 +6,7 @@ from pathlib import Path
 
 from pipeline.progress import dummy_progress, tqdm_progress
 import multiprocessing
+from pipeline.utils import Mapper
 
 class FileSizeHasher:
     extension = 'size'
@@ -96,6 +97,13 @@ class Fileset:
         path_gen = path_gen or (lambda f: f'{f}.{processor.__name__}') 
         return [Execution(lambda p, i=i: self._reader(i, p), p, hasher, path_gen, processor, process) for i, p in enumerate(self._files)]
 
+    def copy(self, mapper):
+        import shutil
+        for f in self._files:
+            output = str(mapper(f))
+            Path(output).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(str(f), output)
+
     def delete(self):
         for f in self.files:
             Path(f).unlink()
@@ -130,7 +138,7 @@ class NdJsonFiles(Fileset):
     @staticmethod
     def _write(path, objects):
         with open(path, 'w') as f:
-            f.writelines(map(lambda l : f'{json.dumps(l)}\n', objects))
+            f.writelines(map(lambda l : f'{json.dumps(l, separators=(",", ":"))}\n', objects))
 
     def __init__(self, files = []):
         super().__init__(files=files, reader=NdJsonFiles._read, writer=NdJsonFiles._write, type=NdJsonFiles) 
