@@ -8,6 +8,12 @@ from pipeline.progress import dummy_progress, tqdm_progress
 import multiprocessing
 from pipeline.utils import Mapper
 
+def json_load(line):
+    try:
+        return json.loads(line)
+    except:
+        return json.loads(line.encode('utf-8','ignore'))
+
 class FileSizeHasher:
     extension = 'size'
     
@@ -140,7 +146,7 @@ class MultilineFiles(Fileset):
 class NdJsonFiles(Fileset):
     @staticmethod
     def _read(i, path):
-        return map(lambda l : json.loads(l), open(path))
+        return map(lambda l : json_load(l), open(path))
 
     @staticmethod
     def _write(path, objects):
