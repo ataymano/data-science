@@ -12,7 +12,7 @@ def json_load(line):
     try:
         return json.loads(line)
     except:
-        return json.loads(line.encode('utf-8','ignore'))
+        return json.loads(line.replace('\x01', ''))
 
 class FileSizeHasher:
     extension = 'size'
