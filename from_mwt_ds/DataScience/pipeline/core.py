@@ -67,11 +67,11 @@ class Fileset:
     def read(self, i):
         return self._reader(i, self._files[i])
 
-    def _process_execution(self, execution, progress, fork = False):
+    def _process_execution(self, execution, progress, writer, fork = False):
         def _run(execution):
             result = execution.run()
             if result is not None:
-                self._writer(execution.output, result)
+                writer(execution.output, result)
             return execution.close()
         if fork:
             result = _fork(_run, [execution])
@@ -80,16 +80,17 @@ class Fileset:
         progress.on_step()
         return result
 
-    def init(self, executions, progress=tqdm_progress(), procs=max(1, multiprocessing.cpu_count() // 2)):
+    def init(self, executions, progress=tqdm_progress(), procs=max(1, multiprocessing.cpu_count() - 1), writer = None):
         self.files = []
+        writer = writer or self._writer
         progress.on_start(len(executions))
         if procs == 1:
             for execution in executions:
-                self._files.append(self._process_execution(execution, progress))
+                self._files.append(self._process_execution(execution, progress, writer))
         else:
             from multiprocessing.pool import ThreadPool
             with ThreadPool(procs) as pool:
-                self._files = pool.starmap(self._process_execution, [(e, progress, True) for e in executions])
+                self._files = pool.starmap(self._process_execution, [(e, progress, writer, True) for e in executions])
         progress.on_finish() 
         return self
 
@@ -97,12 +98,16 @@ class Fileset:
         path_gen = path_gen or (lambda f: f'{f}.{processor.__name__}') 
         return [Execution(lambda p, i=i: self._reader(i, p), p, hasher, path_gen, processor, process) for i, p in enumerate(self._files)]
 
-    def copy(self, mapper):
+    def copy(self, mapper, progress=tqdm_progress(), procs=max(1, multiprocessing.cpu_count() - 1), process = False):
         import shutil
-        for f in self._files:
-            output = str(mapper(f))
-            Path(output).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(str(f), output)
+        from copy import deepcopy
+        def _copy(src, dst):
+            Path(dst).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(src, dst)         
+        return deepcopy(self).init(
+            [Execution(lambda p, i=i: p, p, FileSizeHasher(), mapper, lambda p: _copy(p, mapper(p)), process) for i, p in enumerate(self._files)],
+            procs = procs,
+            writer=lambda o: o)
 
     def delete(self):
         for f in self.files:
