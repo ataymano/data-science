@@ -103,6 +103,8 @@ class Fileset:
         from copy import deepcopy
         def _copy(src, dst):
             Path(dst).parent.mkdir(parents=True, exist_ok=True)
+            if Path(dst).exists:
+                Path(dst).unlink()
             shutil.copy(src, dst)         
         return deepcopy(self).init(
             [Execution(lambda p, i=i: p, p, FileSizeHasher(), mapper, lambda p: _copy(p, mapper(p)), process) for i, p in enumerate(self._files)],
