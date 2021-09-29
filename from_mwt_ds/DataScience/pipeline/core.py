@@ -130,6 +130,9 @@ class Fileset:
     def __len__(self):
         return len(self._files)
 
+    def size(self):
+        return sum(map(lambda p: Path(p).stat().st_size, self._files))
+
 class MultilineFiles(Fileset):
     @staticmethod
     def _read(i, path):
