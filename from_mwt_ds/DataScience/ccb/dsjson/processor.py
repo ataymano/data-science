@@ -61,7 +61,9 @@ class Processor:
         return json.dumps(result)
 
     def _process_decision_csv(self, line):
-        parsed = json_load(line)
+        return self._process_decision_obj_csv(json_load(line))
+
+    def _process_decision_obj_csv(self, parsed):
         top = dict(ChainMap(*[p(parsed) for p in self.processors['/']]))
         shared = dict(ChainMap(*[p(parsed['c']) for p in self.processors['c']]))
 
@@ -93,4 +95,9 @@ class Processor:
         for f in self.filters:
             lines = filter(lambda l: f(l), lines)
         return pd.DataFrame(chain.from_iterable(map(lambda l: self._process_decision_csv(l), lines)))
+
+    def obj2pd(self, objects):
+        if self.processors['_multi'] and (self.processors['_slots'] or self.processors['_outcomes']):
+            raise Exception('Cannot process both slots and actions in csv processing')
+        return pd.DataFrame(chain.from_iterable(map(lambda l: self._process_decision_obj_csv(l), objects)))
 
