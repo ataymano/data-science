@@ -12,7 +12,7 @@ def json_load(line):
     try:
         return json.loads(line)
     except:
-        return json.loads(line.replace('\x01', ''))
+        return None
 
 class FileSizeHasher:
     extension = 'size'
@@ -146,7 +146,7 @@ class MultilineFiles(Fileset):
 class NdJsonFiles(Fileset):
     @staticmethod
     def _read(i, path):
-        return map(lambda l : json_load(l), open(path))
+        return filter(lambda o: o is not None, map(lambda l : json_load(l), open(path)))
 
     @staticmethod
     def _write(path, objects):
