@@ -12,6 +12,7 @@ from vw_executor.handlers import _Handlers
 from vw_executor.vw_cache import VwCache
 from vw_executor.handlers import ProgressBars
 from vw_executor.vw_opts import VwOpts, InteractiveGrid
+from vw_executor.interactive import plot_loss
 
 
 def _safe_to_float(num: str, default):
@@ -399,17 +400,17 @@ class Vw:
             cache_opts = VwOpts(opts).to_cache_cmd()
         return self._run(inputs, cache_opts, ['--cache_file'], '-d', input_dir, TestJob)
 
-    def train(self, inputs, opts, outputs=None, input_mode='-d', input_dir=''):
+    def train(self, inputs, opts, outputs=None, input_mode='-d', input_dir='', visualize=plot_loss):
         if isinstance(opts, InteractiveGrid):
-            return self._interact(inputs, opts, outputs or [], input_mode, input_dir, TrainJob)
+            return self._interact(inputs, opts, outputs or [], input_mode, input_dir, TrainJob, visualize)
         return self._run(inputs, opts, outputs or [], input_mode, input_dir, TrainJob)
 
-    def test(self, inputs, opts, outputs=None, input_mode='-d', input_dir=''):
+    def test(self, inputs, opts, outputs=None, input_mode='-d', input_dir='', visualize=plot_loss):
         if isinstance(opts, InteractiveGrid):
-            return self._interact(inputs, opts, outputs or [], input_mode, input_dir, TestJob)
+            return self._interact(inputs, opts, outputs or [], input_mode, input_dir, TestJob, visualize)
         return self._run(inputs, opts, outputs or [], input_mode, input_dir, TestJob)
 
-    def _interact(self, inputs, opts, outputs, input_mode, input_dir, job_type):
+    def _interact(self, inputs, opts, outputs, input_mode, input_dir, job_type, visualize):
         from ipywidgets import interactive, VBox, Layout, GridBox
         from IPython.display import display
         import matplotlib.pyplot as plt
@@ -418,8 +419,7 @@ class Vw:
             self.last_job = self._with(handlers=[])._run(
                 inputs, locals()['opts'], outputs, input_mode, input_dir, job_type)
             ax.clear()
-            fig.suptitle('Loss')
-            self.last_job.loss_table['loss'].plot(ax=ax)
+            visualize(self.last_job, fig, ax)
             fig.canvas.draw()
 
         fig, ax = plt.subplots(dpi=100, figsize=[9, 4])
