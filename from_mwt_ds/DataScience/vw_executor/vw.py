@@ -12,7 +12,7 @@ from vw_executor.handlers import _Handlers
 from vw_executor.vw_cache import VwCache
 from vw_executor.handlers import ProgressBars
 from vw_executor.vw_opts import VwOpts, InteractiveGrid
-from vw_executor.interactive import plot_loss
+from vw_executor.interactive import plot_loss, Simulator
 
 
 def _safe_to_float(num: str, default):
@@ -401,12 +401,12 @@ class Vw:
         return self._run(inputs, cache_opts, ['--cache_file'], '-d', input_dir, TestJob)
 
     def train(self, inputs, opts, outputs=None, input_mode='-d', input_dir='', visualize=plot_loss):
-        if isinstance(opts, InteractiveGrid):
+        if isinstance(opts, InteractiveGrid) or isinstance(inputs, Simulator):
             return self._interact(inputs, opts, outputs or [], input_mode, input_dir, TrainJob, visualize)
         return self._run(inputs, opts, outputs or [], input_mode, input_dir, TrainJob)
 
     def test(self, inputs, opts, outputs=None, input_mode='-d', input_dir='', visualize=plot_loss):
-        if isinstance(opts, InteractiveGrid):
+        if isinstance(opts, InteractiveGrid) or isinstance(inputs, Simulator):
             return self._interact(inputs, opts, outputs or [], input_mode, input_dir, TestJob, visualize)
         return self._run(inputs, opts, outputs or [], input_mode, input_dir, TestJob)
 
