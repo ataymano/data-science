@@ -74,7 +74,7 @@ class Task:
         return self._job._vw.run(self.args)
 
     def _run(self, reset):
-        result_files = list(self.outputs.values()) + [self.stdout_path]
+        result_files = list(self.outputs.values()) + [self.stdout_path, self.audit_path]
         not_exist = next((p for p in result_files if not Path(p).exists()), None)
         self.start_time = time.time()
         if reset or not_exist:
