@@ -109,6 +109,42 @@ class AzureMLHandler(HandlerBase):
                 self.context.log(key, value)
 
 
+class MLFlowHandler(HandlerBase):
+    def __init__(self, experiment_name, folder='mlruns'):
+        from mlflow.tracking import MlflowClient
+        self.client = MlflowClient(folder)
+        self.experiment_id = self.client.create_experiment(experiment_name)
+
+    def on_start(self, inputs, opts):
+        self.runs = {}
+
+    def on_job_start(self, job):
+        self.runs[job.name] = self.client.create_run(self.experiment_id).info.run_id
+        run_id = self.runs[job.name]
+        for k, v in job.opts.items():
+            self.client.log_param(run_id, k.replace('#', ''), v)
+
+    def on_job_finish(self, job):
+        from vw_executor.vw import ExecutionStatus
+        run_id = self.runs[job.name]
+        self.client.set_terminated(run_id)
+        self.client.log_param(run_id, 'Status', job.status.name)
+        if '-f' in job.outputs:
+            self.client.log_artifact(run_id, job.outputs['-f'][-1])
+
+    def on_task_finish(self, job, task_idx):
+        from vw_executor.vw import ExecutionStatus
+        task = job[task_idx]
+        run_id = self.runs[job.name]
+        if task.status == ExecutionStatus.Success:
+            for i, row in task.loss_table.iterrows():
+                self.client.log_metric(run_id, 'loss', row['loss'])
+                self.client.log_metric(run_id, 'since_last', row['since_last'])   
+            for k, v in job[task_idx].metrics.items():
+                if isinstance(v, float) or isinstance(v, int):
+                    self.client.log_metric(run_id, k, v)
+
+
 class MultiHandler:
     def __init__(self, handlers):
         self.handlers = handlers
